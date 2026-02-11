@@ -1,50 +1,175 @@
-# React + TypeScript + Vite
+# 🐍 HexSnake - 六边形贪吃蛇游戏
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+一个基于 React + TypeScript + Vite 开发的六边形贪吃蛇游戏，具有独特的双面翻转机制。
 
-Currently, two official plugins are available:
+![游戏预览](https://img.shields.io/badge/React-18.3-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue) ![Vite](https://img.shields.io/badge/Vite-5.0-orange)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🎮 游戏特色
 
-## Expanding the ESLint configuration
+- **六边形网格**：采用轴向坐标系统的六边形游戏区域
+- **双面机制**：游戏区域分为 A 面和 B 面，蛇可以在两面之间穿梭
+- **翻转穿越**：从蓝色边穿越后，游戏区域翻面，蛇从对称位置出现
+- **随机出口**：开局随机生成一对面对面的蓝色穿越区域
+- **视觉反馈**：清晰的颜色标识和动画效果
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+## 🎯 游戏规则
 
-- Configure the top-level `parserOptions` property like this:
+### 基本操作
+- **← 左转**：蛇向左转 60°
+- **→ 右转**：蛇向右转 60°
+- **空格键**：开始/暂停游戏
+- **R 键**：重新开始游戏
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+### 游戏目标
+- 控制蛇吃掉粉色食物 🍎
+- 每吃一个食物得 10 分
+- 蛇身会随着吃食物而变长
+- 避免撞墙或撞到自己
+
+### 翻转机制 ⭐
+
+```
+        A 面                    B 面
+    ┌─────────┐            ┌─────────┐
+    │  🔵 🔵  │            │  🔵 🔵  │
+    │  🐍 🍎  │  ──翻转──▶  │  🐍 🍎  │
+    │  🔵 🔵  │            │  🔵 🔵  │
+    └─────────┘            └─────────┘
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+- **🔵 蓝色边**：可穿越的翻转出口
+- **🔴 红色 X**：墙壁，撞到会游戏结束
+- **翻转规则**：
+  1. 从蓝色边穿越
+  2. 游戏区域翻面（A 面 ↔ B 面）
+  3. 蛇从对称位置出现（-q, -r）
+  4. 食物也翻转到另一面的对应位置
+  5. 方向保持不变
+  6. 翻转后第一格免疫墙壁
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+### 视觉标识
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+| 颜色 | 含义 |
+|------|------|
+| 🟢 绿色 | 蛇头/蛇身 |
+| 🩷 粉色 | 当前面的食物 |
+| 🟣 紫色 | 另一面的食物（幽灵形态） |
+| 🔵 蓝色 | 翻转出口 |
+| 🔴 红色 | 墙壁 |
+
+## 🛠️ 技术栈
+
+- **React 18.3**：UI 框架
+- **TypeScript 5.0**：类型安全
+- **Vite 5.0**：构建工具
+- **CSS3**：样式和动画
+
+## 📦 安装和运行
+
+### 环境要求
+- Node.js >= 18.0
+- npm >= 9.0
+
+### 安装依赖
+```bash
+npm install
 ```
+
+### 开发模式
+```bash
+npm run dev
+```
+访问 http://localhost:5173 查看游戏
+
+### 构建生产版本
+```bash
+npm run build
+```
+
+### 预览生产版本
+```bash
+npm run preview
+```
+
+## 🎨 游戏机制详解
+
+### 六边形坐标系统
+
+游戏使用轴向坐标系统（q, r）来表示六边形位置：
+
+```
+     (0, -1)   (1, -1)
+        ↖  ↗
+(-1, 0)  (0, 0)  (1, 0)
+        ↙  ↘
+    (-1, 1)   (0, 1)
+```
+
+### 翻转边对
+
+游戏有三对对称边，开局随机选择一对作为翻转出口：
+
+1. **左右边**：q = -15 和 q = 15
+2. **左下右上边**：r = 15 和 r = -15
+3. **左上右下边**：-q - r = 15 和 -q - r = -15
+
+### 翻转算法
+
+```typescript
+// 翻转后从对称位置出现
+const newCoord = {
+  q: -coord.q,
+  r: -coord.r
+}
+```
+
+## 📁 项目结构
+
+```
+hex-snake/
+├── src/
+│   ├── App.tsx          # 主游戏组件
+│   ├── App.css          # 游戏样式
+│   ├── main.tsx         # 应用入口
+│   └── vite-env.d.ts    # Vite 类型声明
+├── public/              # 静态资源
+├── index.html           # HTML 模板
+├── package.json         # 项目配置
+├── tsconfig.json        # TypeScript 配置
+└── vite.config.ts       # Vite 配置
+```
+
+## 🎮 游戏截图
+
+```
+╔════════════════════════════════════════╗
+║         🐍 HexSnake 游戏界面            ║
+╠════════════════════════════════════════╣
+║                                          ║
+║        🔵 🔵 🔵 🔵 🔵 🔵              ║
+║      🔵 🔵 🔵 🔵 🔵 🔵 🔵              ║
+║    🔵 🔵 🐍 🍎 🔵 🔵 🔵 🔵              ║
+║      🔵 🔵 🔵 🔵 🔵 🔵 🔵              ║
+║        🔵 🔵 🔵 🔵 🔵 🔵              ║
+║                                          ║
+║  分数: 100  当前面: A                   ║
+║                                          ║
+║  ← 左转  → 右转  空格: 暂停            ║
+╚════════════════════════════════════════╝
+```
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 📄 许可证
+
+MIT License
+
+## 🎉 致谢
+
+感谢所有为这个项目做出贡献的开发者！
+
+---
+
+**享受游戏吧！** 🎮🐍
