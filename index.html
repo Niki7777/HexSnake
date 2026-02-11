@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#1a1a2e" />
-    <meta name="description" content="HexSnake - 六边形贪吃蛇游戏，具有双面翻转机制" />
+    <meta name="description" content="HexSnake - 六边形贪吃蛇游戏" />
     <title>HexSnake - 六边形贪吃蛇</title>
     <style>
       * {
@@ -27,6 +27,8 @@
       .game-container {
         text-align: center;
         padding: 20px;
+        max-width: 800px;
+        width: 100%;
       }
 
       .game-title {
@@ -62,11 +64,14 @@
       .game-board {
         position: relative;
         margin: 20px 0;
+        width: 100%;
+        height: 60vh;
+        min-height: 400px;
       }
 
       .game-svg {
-        max-width: 100%;
-        max-height: 80vh;
+        width: 100%;
+        height: 100%;
         border-radius: 10px;
         box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
       }
@@ -82,6 +87,7 @@
         text-align: center;
         box-shadow: 0 0 30px rgba(74, 222, 128, 0.3);
         border: 2px solid #4ade80;
+        z-index: 10;
       }
 
       .game-over h2 {
@@ -122,6 +128,7 @@
         text-shadow: 0 0 10px rgba(244, 114, 182, 0.8);
         animation: pop 0.5s ease-out forwards;
         pointer-events: none;
+        z-index: 5;
       }
 
       @keyframes pop {
@@ -153,23 +160,26 @@
         .controls {
           font-size: 0.8rem;
         }
+
+        .game-board {
+          height: 50vh;
+          min-height: 300px;
+        }
       }
     </style>
   </head>
   <body>
     <div id="root"></div>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
     <script>
       const { useState, useEffect, useRef } = React;
 
       // 游戏配置
       const HEX_SIZE = 10;
-      const HEX_WIDTH = HEX_SIZE * 2;
-      const HEX_HEIGHT = Math.sqrt(3) * HEX_SIZE;
       const GRID_RADIUS = 15;
 
-      // 类型定义
+      // 方向定义
       const Direction = {
         RIGHT: 0,
         DOWN_RIGHT: 1,
@@ -179,14 +189,15 @@
         UP_RIGHT: 5
       };
 
-      const DIRECTION_VECTORS = {
-        [Direction.RIGHT]: { q: 1, r: 0 },
-        [Direction.DOWN_RIGHT]: { q: 0, r: 1 },
-        [Direction.DOWN_LEFT]: { q: -1, r: 1 },
-        [Direction.LEFT]: { q: -1, r: 0 },
-        [Direction.UP_LEFT]: { q: 0, r: -1 },
-        [Direction.UP_RIGHT]: { q: 1, r: -1 }
-      };
+      // 方向向量
+      const DIRECTION_VECTORS = [
+        { q: 1, r: 0 },    // RIGHT
+        { q: 0, r: 1 },    // DOWN_RIGHT
+        { q: -1, r: 1 },   // DOWN_LEFT
+        { q: -1, r: 0 },   // LEFT
+        { q: 0, r: -1 },   // UP_LEFT
+        { q: 1, r: -1 }    // UP_RIGHT
+      ];
 
       // 翻转边对
       const WRAP_EDGE_PAIRS = [
@@ -300,29 +311,32 @@
 
       // 主游戏组件
       function App() {
-        const [gameState, setGameState] = useState(() => {
-          const initialSnake = [
+        // 初始状态
+        const [gameState, setGameState] = useState({
+          snake: [
             { q: 0, r: 0, side: 0 },
             { q: -1, r: 0, side: 0 },
             { q: -2, r: 0, side: 0 }
-          ];
-          return {
-            snake: initialSnake,
-            food: generateFood(initialSnake),
-            direction: 0,
-            score: 0,
-            isPlaying: false,
-            gameOver: false,
-            currentSide: 0,
-            eatEffect: null,
-            wrapImmunity: 0
-          };
+          ],
+          food: generateFood([
+            { q: 0, r: 0, side: 0 },
+            { q: -1, r: 0, side: 0 },
+            { q: -2, r: 0, side: 0 }
+          ]),
+          direction: 0,
+          score: 0,
+          isPlaying: false,
+          gameOver: false,
+          currentSide: 0,
+          eatEffect: null,
+          wrapImmunity: 0
         });
 
         const gameLoopRef = useRef(null);
         const effectTimeoutRef = useRef(null);
         const validCells = useRef(getValidHexCells());
 
+        // 键盘控制
         useEffect(() => {
           const handleKeyDown = (e) => {
             switch (e.key) {
@@ -370,6 +384,7 @@
           return () => window.removeEventListener('keydown', handleKeyDown);
         }, []);
 
+        // 游戏循环
         useEffect(() => {
           if (gameState.isPlaying && !gameState.gameOver) {
             gameLoopRef.current = setInterval(() => {
@@ -410,11 +425,7 @@
                     r: -prev.food.r
                   };
                   if (isValidPosition(flippedFoodCoord)) {
-                    newFood = {
-                      q: flippedFoodCoord.q,
-                      r: flippedFoodCoord.r,
-                      side: newSide
-                    };
+                    newFood = { ...flippedFoodCoord, side: newSide };
                   } else {
                     newFood = generateFood(newSnake, newSide);
                   }
@@ -429,7 +440,6 @@
                   newEatEffect = {
                     x: headPixel.x,
                     y: headPixel.y,
-                    active: true,
                     timestamp: Date.now()
                   };
 
@@ -467,10 +477,78 @@
           };
         }, [gameState.isPlaying, gameState.gameOver]);
 
+        // 计算视图大小
         const viewBoxWidth = (GRID_RADIUS * 3 + 2) * HEX_SIZE;
-        const viewBoxHeight = (GRID_RADIUS * 2 + 2) * HEX_HEIGHT;
+        const viewBoxHeight = (GRID_RADIUS * 2 + 2) * HEX_SIZE * Math.sqrt(3);
 
-        // 使用 React.createElement 替代 JSX
+        // 渲染函数
+        const renderHexGrid = () => {
+          return validCells.current.map((cell, index) => {
+            const { x, y } = hexToPixel(cell.q, cell.r);
+            const snakeOnCell = gameState.snake.filter(s => s.side === gameState.currentSide);
+            const isSnakeHead = isSameCoord(cell, snakeOnCell[0] || { q: -999, r: -999 });
+            const isSnakeBody = snakeOnCell.slice(1).some(s => isSameCoord(s, cell));
+            const isFood = isSameCoord(cell, gameState.food) && gameState.food.side === gameState.currentSide;
+            const isOtherSideFood = isSameCoord(cell, gameState.food) && gameState.food.side !== gameState.currentSide;
+            const onActiveWrapEdge = isWrapExit(cell);
+            const onOtherEdge = isOnAnyEdge(cell) && !onActiveWrapEdge;
+
+            let fillColor = '#1e1e32';
+            let strokeColor = '#2d2d4a';
+
+            if (isSnakeHead) {
+              fillColor = '#4ade80';
+              strokeColor = '#22c55e';
+            } else if (isSnakeBody) {
+              fillColor = '#22c55e';
+              strokeColor = '#16a34a';
+            } else if (isFood) {
+              fillColor = '#f472b6';
+              strokeColor = '#ec4899';
+            } else if (isOtherSideFood) {
+              fillColor = '#4c1d95';
+              strokeColor = '#7c3aed';
+            } else if (onActiveWrapEdge) {
+              fillColor = '#1e3a5f';
+              strokeColor = '#3b82f6';
+            } else if (onOtherEdge) {
+              fillColor = '#1e1e32';
+              strokeColor = '#ef4444';
+            }
+
+            const elements = [
+              React.createElement('path', {
+                key: `path-${index}`,
+                d: createHexPath(x, y, HEX_SIZE - 1),
+                fill: fillColor,
+                stroke: strokeColor,
+                strokeWidth: onActiveWrapEdge ? "3" : "1.5"
+              })
+            ];
+
+            if (isSnakeHead) {
+              elements.push(
+                React.createElement('circle', {
+                  key: `eye1-${index}`,
+                  cx: x + HEX_SIZE * 0.3,
+                  cy: y - HEX_SIZE * 0.3,
+                  r: HEX_SIZE * 0.15,
+                  fill: "#ffffff"
+                }),
+                React.createElement('circle', {
+                  key: `eye2-${index}`,
+                  cx: x - HEX_SIZE * 0.3,
+                  cy: y - HEX_SIZE * 0.3,
+                  r: HEX_SIZE * 0.15,
+                  fill: "#ffffff"
+                })
+              );
+            }
+
+            return React.createElement('g', { key: index }, elements);
+          });
+        };
+
         return React.createElement('div', { className: 'game-container' },
           React.createElement('h1', { className: 'game-title' }, '🐍 HexSnake - 六边形贪吃蛇'),
           React.createElement('div', { className: 'game-info' },
@@ -481,72 +559,7 @@
             React.createElement('svg', {
               viewBox: `${-viewBoxWidth/2} ${-viewBoxHeight/2} ${viewBoxWidth} ${viewBoxHeight}`,
               className: 'game-svg'
-            },
-              validCells.current.map((cell, index) => {
-                const { x, y } = hexToPixel(cell.q, cell.r);
-                const snakeOnCell = gameState.snake.filter(s => s.side === gameState.currentSide);
-                const isSnakeHead = isSameCoord(cell, snakeOnCell[0] || { q: -999, r: -999 });
-                const isSnakeBody = snakeOnCell.slice(1).some(s => isSameCoord(s, cell));
-                const isFood = isSameCoord(cell, gameState.food) && gameState.food.side === gameState.currentSide;
-                const isOtherSideFood = isSameCoord(cell, gameState.food) && gameState.food.side !== gameState.currentSide;
-                const onActiveWrapEdge = isWrapExit(cell);
-                const onOtherEdge = isOnAnyEdge(cell) && !onActiveWrapEdge;
-
-                let fillColor = '#1e1e32';
-                let strokeColor = '#2d2d4a';
-
-                if (isSnakeHead) {
-                  fillColor = '#4ade80';
-                  strokeColor = '#22c55e';
-                } else if (isSnakeBody) {
-                  fillColor = '#22c55e';
-                  strokeColor = '#16a34a';
-                } else if (isFood) {
-                  fillColor = '#f472b6';
-                  strokeColor = '#ec4899';
-                } else if (isOtherSideFood) {
-                  fillColor = '#4c1d95';
-                  strokeColor = '#7c3aed';
-                } else if (onActiveWrapEdge) {
-                  fillColor = '#1e3a5f';
-                  strokeColor = '#3b82f6';
-                } else if (onOtherEdge) {
-                  fillColor = '#1e1e32';
-                  strokeColor = '#ef4444';
-                }
-
-                const elements = [
-                  React.createElement('path', {
-                    key: `path-${index}`,
-                    d: createHexPath(x, y, HEX_SIZE - 1),
-                    fill: fillColor,
-                    stroke: strokeColor,
-                    strokeWidth: onActiveWrapEdge ? "3" : "1.5"
-                  })
-                ];
-
-                if (isSnakeHead) {
-                  elements.push(
-                    React.createElement('circle', {
-                      key: `eye1-${index}`,
-                      cx: x + HEX_SIZE * 0.3,
-                      cy: y - HEX_SIZE * 0.3,
-                      r: HEX_SIZE * 0.15,
-                      fill: "#ffffff"
-                    }),
-                    React.createElement('circle', {
-                      key: `eye2-${index}`,
-                      cx: x - HEX_SIZE * 0.3,
-                      cy: y - HEX_SIZE * 0.3,
-                      r: HEX_SIZE * 0.15,
-                      fill: "#ffffff"
-                    })
-                  );
-                }
-
-                return React.createElement('g', { key: index }, ...elements);
-              })
-            ),
+            }, renderHexGrid()),
             gameState.gameOver && React.createElement('div', { className: 'game-over' },
               React.createElement('h2', null, '游戏结束!'),
               React.createElement('div', { className: 'game-over-score' }, '最终分数: ', gameState.score),
@@ -592,8 +605,11 @@
         );
       }
 
-      // 使用 React.createElement 替代 JSX
-      ReactDOM.render(React.createElement(App), document.getElementById('root'));
+      // 渲染应用
+      ReactDOM.render(
+        React.createElement(App),
+        document.getElementById('root')
+      );
     </script>
   </body>
 </html>
