@@ -470,137 +470,130 @@
         const viewBoxWidth = (GRID_RADIUS * 3 + 2) * HEX_SIZE;
         const viewBoxHeight = (GRID_RADIUS * 2 + 2) * HEX_HEIGHT;
 
-        return (
-          <div className="game-container">
-            <h1 className="game-title">🐍 HexSnake - 六边形贪吃蛇</h1>
-            
-            <div className="game-info">
-              <div className="score">分数: {gameState.score}</div>
-              <div className="current-side">当前面: {gameState.currentSide === 0 ? 'A' : 'B'}</div>
-            </div>
+        // 使用 React.createElement 替代 JSX
+        return React.createElement('div', { className: 'game-container' },
+          React.createElement('h1', { className: 'game-title' }, '🐍 HexSnake - 六边形贪吃蛇'),
+          React.createElement('div', { className: 'game-info' },
+            React.createElement('div', { className: 'score' }, '分数: ', gameState.score),
+            React.createElement('div', { className: 'current-side' }, '当前面: ', gameState.currentSide === 0 ? 'A' : 'B')
+          ),
+          React.createElement('div', { className: 'game-board' },
+            React.createElement('svg', {
+              viewBox: `${-viewBoxWidth/2} ${-viewBoxHeight/2} ${viewBoxWidth} ${viewBoxHeight}`,
+              className: 'game-svg'
+            },
+              validCells.current.map((cell, index) => {
+                const { x, y } = hexToPixel(cell.q, cell.r);
+                const snakeOnCell = gameState.snake.filter(s => s.side === gameState.currentSide);
+                const isSnakeHead = isSameCoord(cell, snakeOnCell[0] || { q: -999, r: -999 });
+                const isSnakeBody = snakeOnCell.slice(1).some(s => isSameCoord(s, cell));
+                const isFood = isSameCoord(cell, gameState.food) && gameState.food.side === gameState.currentSide;
+                const isOtherSideFood = isSameCoord(cell, gameState.food) && gameState.food.side !== gameState.currentSide;
+                const onActiveWrapEdge = isWrapExit(cell);
+                const onOtherEdge = isOnAnyEdge(cell) && !onActiveWrapEdge;
 
-            <div className="game-board">
-              <svg 
-                viewBox={`${-viewBoxWidth/2} ${-viewBoxHeight/2} ${viewBoxWidth} ${viewBoxHeight}`}
-                className="game-svg"
-              >
-                {validCells.current.map((cell, index) => {
-                  const { x, y } = hexToPixel(cell.q, cell.r);
-                  const snakeOnCell = gameState.snake.filter(s => s.side === gameState.currentSide);
-                  const isSnakeHead = isSameCoord(cell, snakeOnCell[0] || { q: -999, r: -999 });
-                  const isSnakeBody = snakeOnCell.slice(1).some(s => isSameCoord(s, cell));
-                  const isFood = isSameCoord(cell, gameState.food) && gameState.food.side === gameState.currentSide;
-                  const isOtherSideFood = isSameCoord(cell, gameState.food) && gameState.food.side !== gameState.currentSide;
-                  const onActiveWrapEdge = isWrapExit(cell);
-                  const onOtherEdge = isOnAnyEdge(cell) && !onActiveWrapEdge;
+                let fillColor = '#1e1e32';
+                let strokeColor = '#2d2d4a';
 
-                  let fillColor = '#1e1e32';
-                  let strokeColor = '#2d2d4a';
+                if (isSnakeHead) {
+                  fillColor = '#4ade80';
+                  strokeColor = '#22c55e';
+                } else if (isSnakeBody) {
+                  fillColor = '#22c55e';
+                  strokeColor = '#16a34a';
+                } else if (isFood) {
+                  fillColor = '#f472b6';
+                  strokeColor = '#ec4899';
+                } else if (isOtherSideFood) {
+                  fillColor = '#4c1d95';
+                  strokeColor = '#7c3aed';
+                } else if (onActiveWrapEdge) {
+                  fillColor = '#1e3a5f';
+                  strokeColor = '#3b82f6';
+                } else if (onOtherEdge) {
+                  fillColor = '#1e1e32';
+                  strokeColor = '#ef4444';
+                }
 
-                  if (isSnakeHead) {
-                    fillColor = '#4ade80';
-                    strokeColor = '#22c55e';
-                  } else if (isSnakeBody) {
-                    fillColor = '#22c55e';
-                    strokeColor = '#16a34a';
-                  } else if (isFood) {
-                    fillColor = '#f472b6';
-                    strokeColor = '#ec4899';
-                  } else if (isOtherSideFood) {
-                    fillColor = '#4c1d95';
-                    strokeColor = '#7c3aed';
-                  } else if (onActiveWrapEdge) {
-                    fillColor = '#1e3a5f';
-                    strokeColor = '#3b82f6';
-                  } else if (onOtherEdge) {
-                    fillColor = '#1e1e32';
-                    strokeColor = '#ef4444';
-                  }
+                const elements = [
+                  React.createElement('path', {
+                    key: `path-${index}`,
+                    d: createHexPath(x, y, HEX_SIZE - 1),
+                    fill: fillColor,
+                    stroke: strokeColor,
+                    strokeWidth: onActiveWrapEdge ? "3" : "1.5"
+                  })
+                ];
 
-                  return (
-                    <g key={index}>
-                      <path
-                        d={createHexPath(x, y, HEX_SIZE - 1)}
-                        fill={fillColor}
-                        stroke={strokeColor}
-                        strokeWidth={onActiveWrapEdge ? "3" : "1.5"}
-                      />
-                      {isSnakeHead && (
-                        <>
-                          <circle 
-                            cx={x + HEX_SIZE * 0.3} 
-                            cy={y - HEX_SIZE * 0.3} 
-                            r={HEX_SIZE * 0.15} 
-                            fill="#ffffff"
-                          />
-                          <circle 
-                            cx={x - HEX_SIZE * 0.3} 
-                            cy={y - HEX_SIZE * 0.3} 
-                            r={HEX_SIZE * 0.15} 
-                            fill="#ffffff"
-                          />
-                        </>
-                      )}
-                    </g>
+                if (isSnakeHead) {
+                  elements.push(
+                    React.createElement('circle', {
+                      key: `eye1-${index}`,
+                      cx: x + HEX_SIZE * 0.3,
+                      cy: y - HEX_SIZE * 0.3,
+                      r: HEX_SIZE * 0.15,
+                      fill: "#ffffff"
+                    }),
+                    React.createElement('circle', {
+                      key: `eye2-${index}`,
+                      cx: x - HEX_SIZE * 0.3,
+                      cy: y - HEX_SIZE * 0.3,
+                      r: HEX_SIZE * 0.15,
+                      fill: "#ffffff"
+                    })
                   );
-                })}
-              </svg>
-              
-              {gameState.gameOver && (
-                <div className="game-over">
-                  <h2>游戏结束!</h2>
-                  <div className="game-over-score">最终分数: {gameState.score}</div>
-                  <button onClick={() => {
-                    const initialSnake = [
-                      { q: 0, r: 0, side: 0 },
-                      { q: -1, r: 0, side: 0 },
-                      { q: -2, r: 0, side: 0 }
-                    ];
-                    setGameState({
-                      snake: initialSnake,
-                      food: generateFood(initialSnake),
-                      direction: 0,
-                      score: 0,
-                      isPlaying: false,
-                      gameOver: false,
-                      currentSide: 0,
-                      eatEffect: null,
-                      wrapImmunity: 0
-                    });
-                  }}>
-                    重新开始
-                  </button>
-                </div>
-              )}
+                }
 
-              {!gameState.gameOver && !gameState.isPlaying && (
-                <div className="game-over" style={{ background: 'rgba(26, 26, 46, 0.8)' }}>
-                  <h2>按空格键开始游戏</h2>
-                  <div className="game-over-score">分数: {gameState.score}</div>
-                </div>
-              )}
-
-              {gameState.eatEffect && (
-                <div 
-                  className="eat-effect"
-                  style={{
-                    left: `${viewBoxWidth/2 + gameState.eatEffect.x}px`,
-                    top: `${viewBoxHeight/2 + gameState.eatEffect.y}px`
-                  }}
-                >
-                  +10
-                </div>
-              )}
-            </div>
-
-            <div className="controls">
-              ← 左转 | → 右转 | 空格: 暂停/开始 | R: 重新开始
-            </div>
-          </div>
+                return React.createElement('g', { key: index }, ...elements);
+              })
+            ),
+            gameState.gameOver && React.createElement('div', { className: 'game-over' },
+              React.createElement('h2', null, '游戏结束!'),
+              React.createElement('div', { className: 'game-over-score' }, '最终分数: ', gameState.score),
+              React.createElement('button', {
+                onClick: () => {
+                  const initialSnake = [
+                    { q: 0, r: 0, side: 0 },
+                    { q: -1, r: 0, side: 0 },
+                    { q: -2, r: 0, side: 0 }
+                  ];
+                  setGameState({
+                    snake: initialSnake,
+                    food: generateFood(initialSnake),
+                    direction: 0,
+                    score: 0,
+                    isPlaying: false,
+                    gameOver: false,
+                    currentSide: 0,
+                    eatEffect: null,
+                    wrapImmunity: 0
+                  });
+                }
+              }, '重新开始')
+            ),
+            !gameState.gameOver && !gameState.isPlaying && React.createElement('div', {
+              className: 'game-over',
+              style: { background: 'rgba(26, 26, 46, 0.8)' }
+            },
+              React.createElement('h2', null, '按空格键开始游戏'),
+              React.createElement('div', { className: 'game-over-score' }, '分数: ', gameState.score)
+            ),
+            gameState.eatEffect && React.createElement('div', {
+              className: 'eat-effect',
+              style: {
+                left: `${viewBoxWidth/2 + gameState.eatEffect.x}px`,
+                top: `${viewBoxHeight/2 + gameState.eatEffect.y}px`
+              }
+            }, '+10')
+          ),
+          React.createElement('div', { className: 'controls' },
+            '← 左转 | → 右转 | 空格: 暂停/开始 | R: 重新开始'
+          )
         );
       }
 
-      ReactDOM.render(<App />, document.getElementById('root'));
+      // 使用 React.createElement 替代 JSX
+      ReactDOM.render(React.createElement(App), document.getElementById('root'));
     </script>
   </body>
 </html>
