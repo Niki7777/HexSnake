@@ -385,6 +385,13 @@ function App() {
   // 键盘控制
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 空格键开始游戏
+      if (!gameState.isPlaying && !gameState.gameOver && e.key === ' ') {
+        startGame()
+        return
+      }
+      
+      // 游戏中控制方向
       if (!gameState.isPlaying || gameState.gameOver) return
       
       setGameState(prev => {
@@ -405,7 +412,7 @@ function App() {
     
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [gameState.isPlaying, gameState.gameOver])
+  }, [gameState.isPlaying, gameState.gameOver, startGame])
 
   const startGame = useCallback(() => {
     const initialSnake: SnakeSegment[] = [
