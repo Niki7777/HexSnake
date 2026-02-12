@@ -176,10 +176,44 @@ function getExitInfo(
   if (!isValidPosition(next)) {
     // 检查当前格子是否在翻转出口上
     if (isWrapExit(coord)) {
-      // 计算对称位置（中心对称）
-      const newCoord = {
-        q: -coord.q,
-        r: -coord.r
+      // 根据当前翻转边的对称轴计算蛇头的轴对称位置
+      const activeEdgePair = WRAP_EDGE_PAIRS[FIXED_WRAP_PAIR_INDEX]
+      let newCoord: HexCoord
+      
+      if (activeEdgePair.name === 'horizontal') {
+        // 水平边 (q = ±GRID_RADIUS)，对称轴是 q = 0
+        // 关于 q=0 对称：q' = -q, r' = r
+        newCoord = {
+          q: -coord.q,
+          r: coord.r
+        }
+      } else if (activeEdgePair.name === 'diagonal1') {
+        // 对角线1 (r = ±GRID_RADIUS)，对称轴是 r = 0
+        // 关于 r=0 对称：q' = q, r' = -r
+        newCoord = {
+          q: coord.q,
+          r: -coord.r
+        }
+      } else {
+        // 对角线2 (s = ±GRID_RADIUS，即 -q-r = ±GRID_RADIUS)，对称轴是 s = 0
+        // 关于 s=0 对称：q' = -r, r' = -q
+        newCoord = {
+          q: -coord.r,
+          r: -coord.q
+        }
+      }
+      
+      // 确保新位置在有效范围内，如果不在，则向中心方向调整
+      if (!isValidPosition(newCoord)) {
+        // 向中心方向调整一个单位
+        const centerVector = {
+          q: newCoord.q > 0 ? -1 : (newCoord.q < 0 ? 1 : 0),
+          r: newCoord.r > 0 ? -1 : (newCoord.r < 0 ? 1 : 0)
+        }
+        newCoord = {
+          q: newCoord.q + centerVector.q,
+          r: newCoord.r + centerVector.r
+        }
       }
 
       return { isWrap: true, newCoord }
@@ -280,11 +314,35 @@ function App() {
           // 检查是否需要翻转或撞墙
           const exitInfo = getExitInfo(head, prev.direction)
 
+          let newDirection = prev.direction
+          
           if (exitInfo.isWrap && exitInfo.newCoord) {
             // 翻转出口 - 翻转时免疫墙壁
             newHead = { ...exitInfo.newCoord, side: 1 - head.side }
             newSide = newHead.side
             flipped = true
+            
+            // 根据当前翻转边的对称轴翻转行进方向，然后取反（往棋盘内部走）
+            const activeEdgePair = WRAP_EDGE_PAIRS[FIXED_WRAP_PAIR_INDEX]
+            let flippedDirection: Direction
+            if (activeEdgePair.name === 'horizontal') {
+              // 水平边 (q = ±GRID_RADIUS)，对称轴是 q = 0
+              // 关于垂直线对称，左右翻转
+              const horizontalFlip: Direction[] = [3, 2, 1, 0, 5, 4]
+              flippedDirection = horizontalFlip[prev.direction]
+            } else if (activeEdgePair.name === 'diagonal1') {
+              // 对角线1 (r = ±GRID_RADIUS)，对称轴是 r = 0
+              // 关于水平线对称，上下翻转
+              const diagonal1Flip: Direction[] = [0, 5, 4, 3, 2, 1]
+              flippedDirection = diagonal1Flip[prev.direction]
+            } else {
+              // 对角线2 (s = ±GRID_RADIUS)，对称轴是 s = 0
+              // 关于 s=0 对称
+              const diagonal2Flip: Direction[] = [4, 3, 2, 1, 0, 5]
+              flippedDirection = diagonal2Flip[prev.direction]
+            }
+            // 取反方向（加3再对6取模），使蛇往棋盘内部走
+            newDirection = ((flippedDirection + 3) % 6) as Direction
           } else if (!isValidPosition(nextCoord)) {
             // 撞墙
             return { ...prev, gameOver: true, isPlaying: false }
@@ -308,10 +366,28 @@ function App() {
           // 同时翻转食物到另一面的对应位置
           if (flipped) {
             newWrapImmunity = 1
-            // 翻转食物到另一面的对应位置
-            const flippedFoodCoord = {
-              q: -prev.food.q,
-              r: -prev.food.r
+            // 根据当前翻转边的对称轴计算食物的轴对称位置
+            const activeEdgePair = WRAP_EDGE_PAIRS[FIXED_WRAP_PAIR_INDEX]
+            let flippedFoodCoord: HexCoord
+            
+            if (activeEdgePair.name === 'horizontal') {
+              // 水平边 (q = ±GRID_RADIUS)，对称轴是 q = 0
+              flippedFoodCoord = {
+                q: -prev.food.q,
+                r: prev.food.r
+              }
+            } else if (activeEdgePair.name === 'diagonal1') {
+              // 对角线1 (r = ±GRID_RADIUS)，对称轴是 r = 0
+              flippedFoodCoord = {
+                q: prev.food.q,
+                r: -prev.food.r
+              }
+            } else {
+              // 对角线2 (s = ±GRID_RADIUS)，对称轴是 s = 0
+              flippedFoodCoord = {
+                q: -prev.food.r,
+                r: -prev.food.q
+              }
             }
             
             // 检查翻转后的食物位置是否有效，如果无效则重新生成
@@ -362,6 +438,7 @@ function App() {
             snake: newSnake,
             food: newFood,
             score: newScore,
+            direction: newDirection,
             currentSide: newCurrentSide,
             eatEffect: newEatEffect,
             wrapImmunity: newWrapImmunity
