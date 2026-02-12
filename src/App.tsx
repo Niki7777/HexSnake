@@ -159,12 +159,7 @@ function isOnSnake(coord: HexCoord, side: number, snake: SnakeSegment[]): boolea
   return snake.some(segment => isSameCoord(segment, coord) && segment.side === side)
 }
 
-// 检查是否是边缘格子
-function isEdgeCell(coord: HexCoord): boolean {
-  return Math.abs(coord.q) === GRID_RADIUS || 
-         Math.abs(coord.r) === GRID_RADIUS || 
-         Math.abs(coord.q + coord.r) === GRID_RADIUS
-}
+
 
 // 获取格子从哪个方向出去会越界，并判断是否是翻转出口
 // 翻转后从对称位置出现
@@ -234,8 +229,8 @@ function isValidPosition(coord: HexCoord): boolean {
 
 function App() {
   const validCells = useRef(getValidHexCells())
-  const gameLoopRef = useRef<NodeJS.Timeout | null>(null)
-  const effectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const gameLoopRef = useRef<number | null>(null)
+  const effectTimeoutRef = useRef<number | null>(null)
   
   // 运行测试
   useEffect(() => {
