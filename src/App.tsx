@@ -25,6 +25,7 @@ interface SnakeSegment extends HexCoord {
 // 食物
 interface Food extends HexCoord {
   side: number // 0 = A面, 1 = B面
+  isActive: boolean // 是否有效（可被吃）
 }
 
 // 游戏状态
@@ -176,10 +177,46 @@ function getExitInfo(
   if (!isValidPosition(next)) {
     // 检查当前格子是否在翻转出口上
     if (isWrapExit(coord)) {
-      // 计算对称位置（中心对称）
-      const newCoord = {
-        q: -coord.q,
-        r: -coord.r
+      // 根据当前翻转边的对称轴计算蛇头的轴对称位置
+      const activeEdgePair = WRAP_EDGE_PAIRS[FIXED_WRAP_PAIR_INDEX]
+      let newCoord: HexCoord
+      
+      if (activeEdgePair.name === 'horizontal') {
+        // 水平边 (q = ±GRID_RADIUS)，对称轴是 q = 0
+        // 关于 q=0 对称：q' = -q, r' = r
+        newCoord = {
+          q: -coord.q,
+          r: coord.r
+        }
+      } else if (activeEdgePair.name === 'diagonal1') {
+        // 对角线1 (r = ±GRID_RADIUS)，对称轴是 r = 0
+        // 关于 r=0 对称：q' = q, r' = -r
+        newCoord = {
+          q: coord.q,
+          r: -coord.r
+        }
+      } else {
+        // 对角线2 (s = ±GRID_RADIUS，即 -q-r = ±GRID_RADIUS)，对称轴是 s = 0
+        // 关于 s=0 对称：q' = -r, r' = -q
+        newCoord = {
+          q: -coord.r,
+          r: -coord.q
+        }
+      }
+      
+      // 确保新位置在有效范围内，如果不在，则向中心方向调整
+      let attempts = 0
+      while (!isValidPosition(newCoord) && attempts < 10) {
+        // 向中心方向调整一个单位
+        const centerVector = {
+          q: newCoord.q > 0 ? -1 : (newCoord.q < 0 ? 1 : 0),
+          r: newCoord.r > 0 ? -1 : (newCoord.r < 0 ? 1 : 0)
+        }
+        newCoord = {
+          q: newCoord.q + centerVector.q,
+          r: newCoord.r + centerVector.r
+        }
+        attempts++
       }
 
       return { isWrap: true, newCoord }
@@ -191,7 +228,7 @@ function getExitInfo(
 }
 
 // 生成随机食物位置（双面）
-function generateFood(snake: SnakeSegment[], targetSide?: number): Food {
+function generateFood(snake: SnakeSegment[], targetSide?: number, currentSide?: number): Food {
   const validCells = getValidHexCells()
   const availablePositions: Food[] = []
   
@@ -200,13 +237,58 @@ function generateFood(snake: SnakeSegment[], targetSide?: number): Food {
     const sidesToCheck = targetSide !== undefined ? [targetSide] : [0, 1]
     for (const side of sidesToCheck) {
       if (!isOnSnake(cell, side, snake)) {
-        availablePositions.push({ ...cell, side })
+        // 食物有效性：如果指定了 currentSide，则食物生成在当前面时有效，生成在反面时无效
+        const isActive = currentSide !== undefined ? side === currentSide : true
+        availablePositions.push({ ...cell, side, isActive })
       }
     }
   }
   
-  if (availablePositions.length === 0) return { q: 0, r: 0, side: 0 }
+  if (availablePositions.length === 0) return { q: 0, r: 0, side: 0, isActive: true }
   return availablePositions[Math.floor(Math.random() * availablePositions.length)]
+}
+
+// 计算辅助线（两条蓝边的对称轴）
+function calculateGuideLine(): { start: { x: number; y: number }; end: { x: number; y: number } } {
+  const activeEdgePair = WRAP_EDGE_PAIRS[FIXED_WRAP_PAIR_INDEX]
+  const lineLength = GRID_RADIUS * 3 // 辅助线长度
+  
+  let startQ: number, startR: number, endQ: number, endR: number
+  
+  switch (activeEdgePair.name) {
+    case 'horizontal':
+      // 水平边对的对称轴是 q=0
+      startQ = 0
+      startR = -lineLength
+      endQ = 0
+      endR = lineLength
+      break
+    case 'diagonal1':
+      // 对角线1对的对称轴是 r=0
+      startQ = -lineLength
+      startR = 0
+      endQ = lineLength
+      endR = 0
+      break
+    case 'diagonal2':
+      // 对角线2对的对称轴是 s=0（即 -q-r=0）
+      startQ = -lineLength
+      startR = lineLength
+      endQ = lineLength
+      endR = -lineLength
+      break
+    default:
+      startQ = -lineLength
+      startR = 0
+      endQ = lineLength
+      endR = 0
+  }
+  
+  // 转换为屏幕坐标
+  const start = hexToPixel(startQ, startR)
+  const end = hexToPixel(endQ, endR)
+  
+  return { start, end }
 }
 
 // 获取下一个位置
@@ -243,11 +325,12 @@ function App() {
       { q: -1, r: 0, side: 0 }, 
       { q: -2, r: 0, side: 0 }
     ]
+    const initialSide = 0
     return {
       snake: initialSnake,
-      food: generateFood(initialSnake),
+      food: generateFood(initialSnake, undefined, initialSide),
       direction: Direction.RIGHT,
-      currentSide: 0,
+      currentSide: initialSide,
       score: 0,
       gameOver: false,
       isPlaying: false,
@@ -280,11 +363,18 @@ function App() {
           // 检查是否需要翻转或撞墙
           const exitInfo = getExitInfo(head, prev.direction)
 
+          let newDirection = prev.direction
+          
           if (exitInfo.isWrap && exitInfo.newCoord) {
             // 翻转出口 - 翻转时免疫墙壁
             newHead = { ...exitInfo.newCoord, side: 1 - head.side }
             newSide = newHead.side
             flipped = true
+            
+            // 行进方向保持不变：
+            // 从蓝色边垂直向外出去 → 从对称蓝色边垂直向内进入
+            // 方向向量在翻转后保持相同的相对方向
+            // 例如：垂直于左上蓝边向外 → 垂直于右下蓝边向内（方向值相同）
           } else if (!isValidPosition(nextCoord)) {
             // 撞墙
             return { ...prev, gameOver: true, isPlaying: false }
@@ -307,33 +397,77 @@ function App() {
           // 如果发生了翻转，设置免疫（翻转后第一格不撞墙）
           // 同时翻转食物到另一面的对应位置
           if (flipped) {
-            newWrapImmunity = 1
-            // 翻转食物到另一面的对应位置
-            const flippedFoodCoord = {
-              q: -prev.food.q,
-              r: -prev.food.r
+            newWrapImmunity = 3 // 设置3步免疫，确保翻转后有足够时间调整
+            
+            // 翻转后立即检查新位置，如果无效则强制调整到有效位置
+            if (!isValidPosition(newHead)) {
+              // 向中心方向逐步调整，直到位置有效
+              let adjustedCoord: HexCoord = { q: newHead.q, r: newHead.r }
+              let attempts = 0
+              while (!isValidPosition(adjustedCoord) && attempts < 10) {
+                const centerVector = {
+                  q: adjustedCoord.q > 0 ? -1 : (adjustedCoord.q < 0 ? 1 : 0),
+                  r: adjustedCoord.r > 0 ? -1 : (adjustedCoord.r < 0 ? 1 : 0)
+                }
+                adjustedCoord = {
+                  q: adjustedCoord.q + centerVector.q,
+                  r: adjustedCoord.r + centerVector.r
+                }
+                attempts++
+              }
+              // 更新 newHead 为调整后的位置
+              newHead = { ...adjustedCoord, side: newSide }
+              // 同时更新 newSnake 的第一个元素（蛇头）
+              newSnake[0] = newHead
+            }
+            
+            // 根据当前翻转边的对称轴计算食物的轴对称位置
+            const activeEdgePair = WRAP_EDGE_PAIRS[FIXED_WRAP_PAIR_INDEX]
+            let flippedFoodCoord: HexCoord
+            
+            if (activeEdgePair.name === 'horizontal') {
+              // 水平边 (q = ±GRID_RADIUS)，对称轴是 q = 0
+              flippedFoodCoord = {
+                q: -prev.food.q,
+                r: prev.food.r
+              }
+            } else if (activeEdgePair.name === 'diagonal1') {
+              // 对角线1 (r = ±GRID_RADIUS)，对称轴是 r = 0
+              flippedFoodCoord = {
+                q: prev.food.q,
+                r: -prev.food.r
+              }
+            } else {
+              // 对角线2 (s = ±GRID_RADIUS)，对称轴是 s = 0
+              flippedFoodCoord = {
+                q: -prev.food.r,
+                r: -prev.food.q
+              }
             }
             
             // 检查翻转后的食物位置是否有效，如果无效则重新生成
             if (isValidPosition(flippedFoodCoord)) {
+              // 食物按照辅助线轴对称翻转位置，同时翻转有效性状态
+              // 每次翻转，食物的有效性状态切换：有效->无效，无效->有效
               newFood = {
                 q: flippedFoodCoord.q,
                 r: flippedFoodCoord.r,
-                side: newSide  // 翻转到新的面
+                side: prev.food.side,  // 保持面不变
+                isActive: !prev.food.isActive  // 切换有效性状态
               }
             } else {
               // 如果翻转后的位置无效，重新生成食物（在新的面上）
-              newFood = generateFood(newSnake, newSide)
+              newFood = generateFood(newSnake, newSide, newCurrentSide)
             }
           } else if (newWrapImmunity > 0) {
             // 移动一步后，免疫结束
             newWrapImmunity--
           }
           
-          // 检查是否吃到食物
-          if (isSameCoord(newHead, prev.food) && newSide === prev.food.side) {
+          // 检查是否吃到食物（基于 isActive 而不是 side）
+          if (isSameCoord(newHead, prev.food) && prev.food.isActive) {
             newScore += 10
-            newFood = generateFood(newSnake)
+            newFood = generateFood(newSnake, undefined, newCurrentSide)
             
             // 触发吃果实特效
             const headPixel = hexToPixel(newHead.q, newHead.r)
@@ -362,6 +496,7 @@ function App() {
             snake: newSnake,
             food: newFood,
             score: newScore,
+            direction: newDirection,
             currentSide: newCurrentSide,
             eatEffect: newEatEffect,
             wrapImmunity: newWrapImmunity
@@ -408,11 +543,12 @@ function App() {
       { q: -1, r: 0, side: 0 }, 
       { q: -2, r: 0, side: 0 }
     ]
+    const initialSide = 0
     setGameState({
       snake: initialSnake,
-      food: generateFood(initialSnake),
+      food: generateFood(initialSnake, undefined, initialSide),
       direction: Direction.RIGHT,
-      currentSide: 0,
+      currentSide: initialSide,
       score: 0,
       gameOver: false,
       isPlaying: true,
@@ -427,11 +563,12 @@ function App() {
       { q: -1, r: 0, side: 0 }, 
       { q: -2, r: 0, side: 0 }
     ]
+    const initialSide = 0
     setGameState({
       snake: initialSnake,
-      food: generateFood(initialSnake),
+      food: generateFood(initialSnake, undefined, initialSide),
       direction: Direction.RIGHT,
-      currentSide: 0,
+      currentSide: initialSide,
       score: 0,
       gameOver: false,
       isPlaying: true,
@@ -470,9 +607,9 @@ function App() {
             const isSnakeHead = isSameCoord(cell, snakeOnCell[0] || { q: -999, r: -999 })
             const isSnakeBody = snakeOnCell.slice(1).some(s => isSameCoord(s, cell))
             
-            // 食物显示逻辑
-            const isFood = isSameCoord(cell, gameState.food) && gameState.food.side === gameState.currentSide
-            const isOtherSideFood = isSameCoord(cell, gameState.food) && gameState.food.side !== gameState.currentSide
+            // 食物显示逻辑 - 基于 isActive 而不是 side
+            const isFood = isSameCoord(cell, gameState.food) && gameState.food.isActive
+            const isOtherSideFood = isSameCoord(cell, gameState.food) && !gameState.food.isActive
             
             const onActiveWrapEdge = isWrapExit(cell)  // 是否在当前激活的翻转出口上
             const onOtherEdge = isOnAnyEdge(cell) && !onActiveWrapEdge  // 在其他边上（墙壁）
@@ -603,6 +740,23 @@ function App() {
               </g>
             )
           })}
+          
+          {/* 辅助线 - 两条蓝边的对称轴 */}
+          {gameState.isPlaying && (() => {
+            const guideLine = calculateGuideLine()
+            return (
+              <line
+                x1={guideLine.start.x}
+                y1={guideLine.start.y}
+                x2={guideLine.end.x}
+                y2={guideLine.end.y}
+                stroke="#ff6b6b"
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                className="guide-line"
+              />
+            )
+          })()}
           
           {/* 吃果实特效 */}
           {gameState.eatEffect && gameState.eatEffect.active && (
