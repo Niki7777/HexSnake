@@ -497,3 +497,63 @@ body {
     padding: 10px;
   }
 }
+
+/* 移动端虚拟方向按钮 */
+.mobile-controls {
+  display: none;
+  justify-content: center;
+  gap: 40px;
+  margin-top: 20px;
+  padding: 0 20px;
+}
+
+.control-btn {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: none;
+  font-size: 2rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.left-btn {
+  background: linear-gradient(135deg, #4ade80, #22d3ee);
+  color: #0f172a;
+  box-shadow: 0 4px 15px rgba(74, 222, 128, 0.4);
+}
+
+.right-btn {
+  background: linear-gradient(135deg, #f472b6, #fb7185);
+  color: #0f172a;
+  box-shadow: 0 4px 15px rgba(244, 114, 182, 0.4);
+}
+
+.control-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 在移动端显示虚拟按钮 */
+@media (max-width: 768px) {
+  .mobile-controls {
+    display: flex;
+  }
+  
+  .controls {
+    display: none;
+  }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+  .control-btn {
+    width: 90px;
+    height: 90px;
+    font-size: 2.2rem;
+  }
+}

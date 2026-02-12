@@ -512,30 +512,41 @@ function App() {
     }
   }, [gameState.isPlaying, gameState.gameOver])
 
+  // 转向函数
+  const turnLeft = useCallback(() => {
+    if (!gameState.isPlaying || gameState.gameOver) return
+    setGameState(prev => ({
+      ...prev,
+      direction: (prev.direction + 5) % 6 as Direction
+    }))
+  }, [gameState.isPlaying, gameState.gameOver])
+
+  const turnRight = useCallback(() => {
+    if (!gameState.isPlaying || gameState.gameOver) return
+    setGameState(prev => ({
+      ...prev,
+      direction: (prev.direction + 1) % 6 as Direction
+    }))
+  }, [gameState.isPlaying, gameState.gameOver])
+
   // 键盘控制
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!gameState.isPlaying || gameState.gameOver) return
       
-      setGameState(prev => {
-        let newDirection = prev.direction
-        
-        switch (e.key) {
-          case 'ArrowLeft':
-            newDirection = (prev.direction + 5) % 6 as Direction
-            break
-          case 'ArrowRight':
-            newDirection = (prev.direction + 1) % 6 as Direction
-            break
-        }
-        
-        return { ...prev, direction: newDirection }
-      })
+      switch (e.key) {
+        case 'ArrowLeft':
+          turnLeft()
+          break
+        case 'ArrowRight':
+          turnRight()
+          break
+      }
     }
     
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [gameState.isPlaying, gameState.gameOver])
+  }, [gameState.isPlaying, gameState.gameOver, turnLeft, turnRight])
 
   const startGame = useCallback(() => {
     const initialSnake: SnakeSegment[] = [
@@ -847,6 +858,26 @@ function App() {
       <div className="controls">
         <p>按 ← 左转 | 按 → 右转 | 🔵翻转 🔴墙壁</p>
       </div>
+      
+      {/* 移动端虚拟方向按钮 */}
+      {gameState.isPlaying && !gameState.gameOver && (
+        <div className="mobile-controls">
+          <button 
+            className="control-btn left-btn" 
+            onClick={turnLeft}
+            aria-label="左转"
+          >
+            ←
+          </button>
+          <button 
+            className="control-btn right-btn" 
+            onClick={turnRight}
+            aria-label="右转"
+          >
+            →
+          </button>
+        </div>
+      )}
     </div>
   )
 }
