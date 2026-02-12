@@ -1,0 +1,1061 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#1a1a2e" />
+    <meta name="description" content="HexSnake - 六边形贪吃蛇游戏，具有双面翻转机制" />
+    <title>HexSnake - 六边形贪吃蛇</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #0f0f1e 0%, #1a1a3e 50%, #0d1b2a 100%);
+        color: #ffffff;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .game-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 15px;
+        max-width: 900px;
+        width: 100%;
+      }
+
+      .game-header {
+        text-align: center;
+        margin-bottom: 15px;
+      }
+
+      .game-header h1 {
+        font-size: 2.2rem;
+        font-weight: 700;
+        background: linear-gradient(90deg, #4ade80, #22d3ee, #f472b6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 10px;
+        text-shadow: 0 0 30px rgba(74, 222, 128, 0.3);
+      }
+
+      .score-board {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .score {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #22d3ee;
+        background: rgba(34, 211, 238, 0.1);
+        padding: 6px 20px;
+        border-radius: 20px;
+        border: 2px solid rgba(34, 211, 238, 0.3);
+      }
+
+      .side-indicator {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #a78bfa;
+        background: rgba(167, 139, 250, 0.1);
+        padding: 6px 16px;
+        border-radius: 20px;
+        border: 2px solid rgba(167, 139, 250, 0.3);
+      }
+
+      .game-board {
+        position: relative;
+        background: rgba(20, 20, 35, 0.9);
+        border-radius: 16px;
+        padding: 15px;
+        box-shadow: 
+          0 0 80px rgba(74, 222, 128, 0.1),
+          inset 0 0 80px rgba(0, 0, 0, 0.4);
+        border: 2px solid rgba(74, 222, 128, 0.15);
+      }
+
+      .game-svg {
+        width: 700px;
+        height: 700px;
+        display: block;
+      }
+
+      .hex-cell {
+        transition: all 0.15s ease;
+      }
+
+      .snake-head {
+        filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.8));
+        animation: pulse 0.4s ease-in-out infinite alternate;
+      }
+
+      @keyframes pulse {
+        from {
+          filter: drop-shadow(0 0 4px rgba(74, 222, 128, 0.5));
+        }
+        to {
+          filter: drop-shadow(0 0 12px rgba(74, 222, 128, 1));
+        }
+      }
+
+      .food {
+        animation: foodPulse 0.8s ease-in-out infinite alternate;
+      }
+
+      .food-glow {
+        animation: foodGlow 0.8s ease-in-out infinite alternate;
+      }
+
+      .star-decoration {
+        animation: starRotate 3s linear infinite;
+        transform-origin: center;
+      }
+
+      @keyframes starRotate {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes foodPulse {
+        from {
+          filter: drop-shadow(0 0 4px rgba(244, 114, 182, 0.5));
+        }
+        to {
+          filter: drop-shadow(0 0 15px rgba(244, 114, 182, 1));
+        }
+      }
+
+      @keyframes foodGlow {
+        from {
+          opacity: 0.7;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      .ghost-food {
+        animation: ghostPulse 1.5s ease-in-out infinite alternate;
+      }
+
+      .ghost-food-glow {
+        animation: ghostGlow 1.5s ease-in-out infinite alternate;
+      }
+
+      @keyframes ghostPulse {
+        from {
+          filter: drop-shadow(0 0 3px rgba(124, 58, 237, 0.3));
+        }
+        to {
+          filter: drop-shadow(0 0 10px rgba(124, 58, 237, 0.7));
+        }
+      }
+
+      @keyframes ghostGlow {
+        from {
+          opacity: 0.4;
+        }
+        to {
+          opacity: 0.8;
+        }
+      }
+
+      .wrap-exit {
+        animation: exitPulse 1s ease-in-out infinite alternate;
+      }
+
+      .exit-marker {
+        animation: markerBlink 0.8s ease-in-out infinite alternate;
+      }
+
+      @keyframes exitPulse {
+        from {
+          filter: drop-shadow(0 0 3px rgba(59, 130, 246, 0.4));
+        }
+        to {
+          filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.9));
+        }
+      }
+
+      @keyframes markerBlink {
+        from {
+          opacity: 0.5;
+          transform: scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1.1);
+        }
+      }
+
+      .eat-effect {
+        pointer-events: none;
+      }
+
+      .flash-ring {
+        animation: flashExpand 0.5s ease-out forwards;
+      }
+
+      .flash-ring-outer {
+        animation: flashExpandOuter 0.5s ease-out forwards;
+      }
+
+      .particle {
+        animation: particleBurst 0.5s ease-out forwards;
+      }
+
+      .score-popup {
+        animation: scoreFloat 0.5s ease-out forwards;
+      }
+
+      @keyframes flashExpand {
+        0% {
+          r: 10;
+          opacity: 1;
+          stroke-width: 4;
+        }
+        100% {
+          r: 40;
+          opacity: 0;
+          stroke-width: 0;
+        }
+      }
+
+      @keyframes flashExpandOuter {
+        0% {
+          r: 15;
+          opacity: 0.8;
+          stroke-width: 3;
+        }
+        100% {
+          r: 55;
+          opacity: 0;
+          stroke-width: 0;
+        }
+      }
+
+      @keyframes particleBurst {
+        0% {
+          opacity: 1;
+          transform: translate(0, 0);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(var(--tx, 20px), var(--ty, 20px));
+        }
+      }
+
+      .score-popup {
+        animation: scoreFloat 0.6s ease-out forwards;
+      }
+
+      @keyframes scoreFloat {
+        0% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-40px) scale(1.3);
+        }
+      }
+
+      .game-over-overlay,
+      .start-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 15, 30, 0.96);
+        border-radius: 16px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(8px);
+        animation: fadeIn 0.3s ease;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      .game-over-content,
+      .start-content {
+        text-align: center;
+        padding: 40px;
+      }
+
+      .game-over-content h2 {
+        font-size: 2.2rem;
+        color: #f87171;
+        margin-bottom: 20px;
+        text-shadow: 0 0 20px rgba(248, 113, 113, 0.5);
+      }
+
+      .start-content h2 {
+        font-size: 2.2rem;
+        background: linear-gradient(90deg, #4ade80, #22d3ee);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 25px;
+      }
+
+      .game-over-content p {
+        font-size: 1.4rem;
+        color: #22d3ee;
+        margin-bottom: 30px;
+      }
+
+      .instructions {
+        margin-bottom: 30px;
+      }
+
+      .instructions p {
+        font-size: 1rem;
+        color: #94a3b8;
+        margin: 8px 0;
+        line-height: 1.5;
+      }
+
+      .highlight-blue {
+        color: #60a5fa;
+        font-weight: 600;
+      }
+
+      .highlight-cyan {
+        color: #06b6d4;
+        font-weight: 600;
+      }
+
+      .highlight-red {
+        color: #ef4444;
+        font-weight: 600;
+      }
+
+      .wall-marker {
+        animation: wallPulse 1.5s ease-in-out infinite alternate;
+      }
+
+      @keyframes wallPulse {
+        from {
+          opacity: 0.4;
+          stroke-width: 1;
+        }
+        to {
+          opacity: 1;
+          stroke-width: 2;
+        }
+      }
+
+      .wrap-exit-2 {
+        animation: exitPulse2 1s ease-in-out infinite alternate;
+      }
+
+      .exit-marker-2 {
+        animation: markerBlink2 0.8s ease-in-out infinite alternate;
+      }
+
+      @keyframes exitPulse2 {
+        from {
+          filter: drop-shadow(0 0 3px rgba(6, 182, 212, 0.4));
+        }
+        to {
+          filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.9));
+        }
+      }
+
+      @keyframes markerBlink2 {
+        from {
+          opacity: 0.5;
+          transform: scale(0.9);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1.1);
+        }
+      }
+
+      .restart-btn,
+      .start-btn {
+        font-size: 1.2rem;
+        font-weight: 600;
+        padding: 14px 36px;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+
+      .start-btn {
+        background: linear-gradient(90deg, #4ade80, #22d3ee);
+        color: #0f172a;
+        box-shadow: 0 4px 20px rgba(74, 222, 128, 0.4);
+      }
+
+      .start-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 30px rgba(74, 222, 128, 0.6);
+      }
+
+      .restart-btn {
+        background: linear-gradient(90deg, #f472b6, #fb7185);
+        color: #0f172a;
+        box-shadow: 0 4px 20px rgba(244, 114, 182, 0.4);
+      }
+
+      .restart-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 30px rgba(244, 114, 182, 0.6);
+      }
+
+      .restart-btn:active,
+      .start-btn:active {
+        transform: translateY(-1px);
+      }
+
+      .controls {
+        margin-top: 15px;
+        text-align: center;
+      }
+
+      .controls p {
+        font-size: 0.95rem;
+        color: #64748b;
+        background: rgba(100, 116, 139, 0.1);
+        padding: 8px 16px;
+        border-radius: 10px;
+        border: 1px solid rgba(100, 116, 139, 0.2);
+      }
+
+      @media (max-width: 850px) {
+        .game-svg {
+          width: 550px;
+          height: 550px;
+        }
+        
+        .game-header h1 {
+          font-size: 1.8rem;
+        }
+        
+        .score-board {
+          flex-direction: column;
+          gap: 10px;
+        }
+        
+        .score, .side-indicator {
+          font-size: 1.1rem;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .game-svg {
+          width: 400px;
+          height: 400px;
+        }
+        
+        .game-header h1 {
+          font-size: 1.5rem;
+        }
+        
+        .start-content h2,
+        .game-over-content h2 {
+          font-size: 1.8rem;
+        }
+        
+        .instructions p {
+          font-size: 0.9rem;
+        }
+        
+        .restart-btn,
+        .start-btn {
+          font-size: 1.1rem;
+          padding: 12px 28px;
+        }
+      }
+
+      @media (max-width: 450px) {
+        .game-svg {
+          width: 320px;
+          height: 320px;
+        }
+        
+        .game-board {
+          padding: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script>
+      const { useState, useEffect, useRef } = React;
+
+      // 游戏配置
+      const HEX_SIZE = 10;
+      const HEX_WIDTH = HEX_SIZE * 2;
+      const HEX_HEIGHT = Math.sqrt(3) * HEX_SIZE;
+      const GRID_RADIUS = 15;
+
+      // 类型定义
+      const Direction = {
+        RIGHT: 0,
+        DOWN_RIGHT: 1,
+        DOWN_LEFT: 2,
+        LEFT: 3,
+        UP_LEFT: 4,
+        UP_RIGHT: 5
+      };
+
+      const DIRECTION_VECTORS = {
+        [Direction.RIGHT]: { q: 1, r: 0 },
+        [Direction.DOWN_RIGHT]: { q: 0, r: 1 },
+        [Direction.DOWN_LEFT]: { q: -1, r: 1 },
+        [Direction.LEFT]: { q: -1, r: 0 },
+        [Direction.UP_LEFT]: { q: 0, r: -1 },
+        [Direction.UP_RIGHT]: { q: 1, r: -1 }
+      };
+
+      // 翻转边对
+      const WRAP_EDGE_PAIRS = [
+        {
+          name: 'horizontal',
+          checks: [(c) => c.q === -GRID_RADIUS, (c) => c.q === GRID_RADIUS]
+        },
+        {
+          name: 'diagonal1',
+          checks: [(c) => c.r === GRID_RADIUS, (c) => c.r === -GRID_RADIUS]
+        },
+        {
+          name: 'diagonal2',
+          checks: [(c) => -c.q - c.r === GRID_RADIUS, (c) => -c.q - c.r === -GRID_RADIUS]
+        }
+      ];
+
+      const FIXED_WRAP_PAIR_INDEX = Math.floor(Math.random() * 3);
+
+      // 工具函数
+      function isValidPosition(coord) {
+        const s = -coord.q - coord.r;
+        return Math.abs(coord.q) <= GRID_RADIUS && 
+               Math.abs(coord.r) <= GRID_RADIUS && 
+               Math.abs(s) <= GRID_RADIUS;
+      }
+
+      function getValidHexCells() {
+        const cells = [];
+        for (let q = -GRID_RADIUS; q <= GRID_RADIUS; q++) {
+          const r1 = Math.max(-GRID_RADIUS, -q - GRID_RADIUS);
+          const r2 = Math.min(GRID_RADIUS, -q + GRID_RADIUS);
+          for (let r = r1; r <= r2; r++) {
+            cells.push({ q, r });
+          }
+        }
+        return cells;
+      }
+
+      function isSameCoord(a, b) {
+        return a.q === b.q && a.r === b.r;
+      }
+
+      function isOnSnake(coord, side, snake) {
+        return snake.some(segment => isSameCoord(segment, coord) && segment.side === side);
+      }
+
+      function isWrapExit(coord) {
+        return WRAP_EDGE_PAIRS[FIXED_WRAP_PAIR_INDEX].checks.some(check => check(coord));
+      }
+
+      function isOnAnyEdge(coord) {
+        return WRAP_EDGE_PAIRS.some(pair => pair.checks.some(check => check(coord)));
+      }
+
+      function getExitInfo(coord, direction) {
+        const vector = DIRECTION_VECTORS[direction];
+        const next = { q: coord.q + vector.q, r: coord.r + vector.r };
+
+        if (!isValidPosition(next)) {
+          if (isWrapExit(coord)) {
+            const newCoord = {
+              q: -coord.q,
+              r: -coord.r
+            };
+            return { isWrap: true, newCoord };
+          }
+          return { isWrap: false };
+        }
+        return { isWrap: false };
+      }
+
+      function generateFood(snake, targetSide) {
+        const validCells = getValidHexCells();
+        const availablePositions = [];
+
+        for (const cell of validCells) {
+          const sidesToCheck = targetSide !== undefined ? [targetSide] : [0, 1];
+          for (const side of sidesToCheck) {
+            if (!isOnSnake(cell, side, snake)) {
+              availablePositions.push({ ...cell, side });
+            }
+          }
+        }
+
+        if (availablePositions.length === 0) return { q: 0, r: 0, side: 0 };
+        return availablePositions[Math.floor(Math.random() * availablePositions.length)];
+      }
+
+      function getNextPosition(head, direction) {
+        const vector = DIRECTION_VECTORS[direction];
+        return { q: head.q + vector.q, r: head.r + vector.r };
+      }
+
+      function hexToPixel(q, r) {
+        const x = HEX_SIZE * (3/2 * q);
+        const y = HEX_SIZE * (Math.sqrt(3)/2 * q + Math.sqrt(3) * r);
+        return { x, y };
+      }
+
+      function createHexPath(centerX, centerY, size) {
+        const points = [];
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i;
+          const x = centerX + size * Math.cos(angle);
+          const y = centerY + size * Math.sin(angle);
+          points.push(`${x},${y}`);
+        }
+        return `M ${points.join(' L ')} Z`;
+      }
+
+      // 主游戏组件
+      function App() {
+        const [gameState, setGameState] = useState(() => {
+          const initialSnake = [
+            { q: 0, r: 0, side: 0 },
+            { q: -1, r: 0, side: 0 },
+            { q: -2, r: 0, side: 0 }
+          ];
+          return {
+            snake: initialSnake,
+            food: generateFood(initialSnake),
+            direction: 0,
+            score: 0,
+            isPlaying: false,
+            gameOver: false,
+            currentSide: 0,
+            eatEffect: null,
+            wrapImmunity: 0
+          };
+        });
+
+        const gameLoopRef = useRef(null);
+        const effectTimeoutRef = useRef(null);
+        const validCells = useRef(getValidHexCells());
+
+        useEffect(() => {
+          const handleKeyDown = (e) => {
+            // 空格键开始游戏
+            if (!gameState.isPlaying && !gameState.gameOver && e.key === ' ') {
+              startGame();
+              return;
+            }
+            
+            switch (e.key) {
+              case 'ArrowLeft':
+                setGameState(prev => ({
+                  ...prev,
+                  direction: (prev.direction + 5) % 6
+                }));
+                break;
+              case 'ArrowRight':
+                setGameState(prev => ({
+                  ...prev,
+                  direction: (prev.direction + 1) % 6
+                }));
+                break;
+              case 'r':
+              case 'R':
+                restartGame();
+                break;
+            }
+          };
+
+          window.addEventListener('keydown', handleKeyDown);
+          return () => window.removeEventListener('keydown', handleKeyDown);
+        }, [gameState.isPlaying, gameState.gameOver]);
+
+        const startGame = () => {
+          const initialSnake = [
+            { q: 0, r: 0, side: 0 },
+            { q: -1, r: 0, side: 0 },
+            { q: -2, r: 0, side: 0 }
+          ];
+          setGameState({
+            snake: initialSnake,
+            food: generateFood(initialSnake),
+            direction: 0,
+            score: 0,
+            isPlaying: true,
+            gameOver: false,
+            currentSide: 0,
+            eatEffect: null,
+            wrapImmunity: 0
+          });
+        };
+
+        const restartGame = () => {
+          const initialSnake = [
+            { q: 0, r: 0, side: 0 },
+            { q: -1, r: 0, side: 0 },
+            { q: -2, r: 0, side: 0 }
+          ];
+          setGameState({
+            snake: initialSnake,
+            food: generateFood(initialSnake),
+            direction: 0,
+            score: 0,
+            isPlaying: true,
+            gameOver: false,
+            currentSide: 0,
+            eatEffect: null,
+            wrapImmunity: 0
+          });
+        };
+
+        useEffect(() => {
+          if (gameState.isPlaying && !gameState.gameOver) {
+            gameLoopRef.current = setInterval(() => {
+              setGameState(prev => {
+                const head = prev.snake[0];
+                let newHead;
+                let newSide = head.side;
+                let flipped = false;
+
+                const nextCoord = getNextPosition(head, prev.direction);
+                const exitInfo = getExitInfo(head, prev.direction);
+
+                if (exitInfo.isWrap && exitInfo.newCoord) {
+                  newHead = { ...exitInfo.newCoord, side: 1 - head.side };
+                  newSide = newHead.side;
+                  flipped = true;
+                } else if (!isValidPosition(nextCoord)) {
+                  return { ...prev, gameOver: true, isPlaying: false };
+                } else {
+                  newHead = { ...nextCoord, side: head.side };
+                }
+
+                if (isOnSnake(newHead, newSide, prev.snake)) {
+                  return { ...prev, gameOver: true, isPlaying: false };
+                }
+
+                const newSnake = [newHead, ...prev.snake];
+                let newFood = prev.food;
+                let newScore = prev.score;
+                let newEatEffect = prev.eatEffect;
+                let newCurrentSide = flipped ? newSide : prev.currentSide;
+                let newWrapImmunity = prev.wrapImmunity;
+
+                if (flipped) {
+                  newWrapImmunity = 1;
+                  const flippedFoodCoord = {
+                    q: -prev.food.q,
+                    r: -prev.food.r
+                  };
+                  if (isValidPosition(flippedFoodCoord)) {
+                    newFood = {
+                      q: flippedFoodCoord.q,
+                      r: flippedFoodCoord.r,
+                      side: newSide
+                    };
+                  } else {
+                    newFood = generateFood(newSnake, newSide);
+                  }
+                } else if (newWrapImmunity > 0) {
+                  newWrapImmunity--;
+                }
+
+                if (isSameCoord(newHead, prev.food) && newHead.side === prev.food.side) {
+                  newScore += 10;
+                  newFood = generateFood(newSnake);
+                  const headPixel = hexToPixel(newHead.q, newHead.r);
+                  newEatEffect = {
+                    x: headPixel.x,
+                    y: headPixel.y,
+                    active: true,
+                    timestamp: Date.now()
+                  };
+
+                  if (effectTimeoutRef.current) {
+                    clearTimeout(effectTimeoutRef.current);
+                  }
+
+                  effectTimeoutRef.current = setTimeout(() => {
+                    setGameState(s => ({ ...s, eatEffect: null }));
+                  }, 500);
+                } else {
+                  newSnake.pop();
+                }
+
+                return {
+                  ...prev,
+                  snake: newSnake,
+                  food: newFood,
+                  score: newScore,
+                  currentSide: newCurrentSide,
+                  eatEffect: newEatEffect,
+                  wrapImmunity: newWrapImmunity
+                };
+              });
+            }, 120);
+          } else if (gameLoopRef.current) {
+            clearInterval(gameLoopRef.current);
+            gameLoopRef.current = null;
+          }
+
+          return () => {
+            if (gameLoopRef.current) {
+              clearInterval(gameLoopRef.current);
+            }
+          };
+        }, [gameState.isPlaying, gameState.gameOver]);
+
+        const viewBoxWidth = (GRID_RADIUS * 3 + 2) * HEX_SIZE;
+        const viewBoxHeight = (GRID_RADIUS * 2 + 2) * HEX_HEIGHT;
+
+        // 使用 React.createElement 替代 JSX
+        return React.createElement('div', { className: 'game-container' },
+          React.createElement('div', { className: 'game-header' },
+            React.createElement('h1', null, '六边形贪吃蛇'),
+            React.createElement('div', { className: 'score-board' },
+              React.createElement('div', { className: 'score' }, '得分: ', gameState.score),
+              React.createElement('div', { className: 'side-indicator' },
+                '当前: ', gameState.currentSide === 0 ? 'A面' : 'B面'
+              )
+            )
+          ),
+          React.createElement('div', { className: 'game-board' },
+            React.createElement('svg', {
+              viewBox: `${-viewBoxWidth/2} ${-viewBoxHeight/2} ${viewBoxWidth} ${viewBoxHeight}`,
+              className: 'game-svg'
+            },
+              validCells.current.map((cell, index) => {
+                const { x, y } = hexToPixel(cell.q, cell.r);
+                const snakeOnCell = gameState.snake.filter(s => s.side === gameState.currentSide);
+                const isSnakeHead = isSameCoord(cell, snakeOnCell[0] || { q: -999, r: -999 });
+                const isSnakeBody = snakeOnCell.slice(1).some(s => isSameCoord(s, cell));
+                const isFood = isSameCoord(cell, gameState.food) && gameState.food.side === gameState.currentSide;
+                const isOtherSideFood = isSameCoord(cell, gameState.food) && gameState.food.side !== gameState.currentSide;
+                const onActiveWrapEdge = isWrapExit(cell);
+                const onOtherEdge = isOnAnyEdge(cell) && !onActiveWrapEdge;
+
+                let fillColor = '#1e1e32';
+                let strokeColor = '#2d2d4a';
+
+                if (isSnakeHead) {
+                  fillColor = '#4ade80';
+                  strokeColor = '#22c55e';
+                } else if (isSnakeBody) {
+                  fillColor = '#22c55e';
+                  strokeColor = '#16a34a';
+                } else if (isFood) {
+                  fillColor = '#f472b6';
+                  strokeColor = '#ec4899';
+                } else if (isOtherSideFood) {
+                  fillColor = '#4c1d95';
+                  strokeColor = '#7c3aed';
+                } else if (onActiveWrapEdge) {
+                  fillColor = '#1e3a5f';
+                  strokeColor = '#3b82f6';
+                }
+
+                const elements = [
+                  React.createElement('path', {
+                    key: `path-${index}`,
+                    d: createHexPath(x, y, HEX_SIZE - 1),
+                    fill: fillColor,
+                    stroke: strokeColor,
+                    strokeWidth: onActiveWrapEdge ? "3" : "1.5",
+                    className: `hex-cell ${isSnakeHead ? 'snake-head' : ''} ${isFood ? 'food' : ''} ${isOtherSideFood ? 'ghost-food' : ''} ${onActiveWrapEdge ? 'wrap-exit' : ''}`
+                  })
+                ];
+
+                if (isSnakeHead) {
+                  elements.push(
+                    React.createElement('circle', {
+                      key: `eye1-${index}`,
+                      cx: x + 4,
+                      cy: y - 2.5,
+                      r: 2,
+                      fill: "#1a1a2e"
+                    }),
+                    React.createElement('circle', {
+                      key: `eye2-${index}`,
+                      cx: x + 4,
+                      cy: y + 2.5,
+                      r: 2,
+                      fill: "#1a1a2e"
+                    })
+                  );
+                }
+
+                if (isFood) {
+                  elements.push(
+                    React.createElement('g', { key: `food-${index}`, className: 'food-icon' },
+                      React.createElement('circle', {
+                        cx: x,
+                        cy: y,
+                        r: 5,
+                        fill: "#fce7f3",
+                        className: "food-glow"
+                      }),
+                      React.createElement('path', {
+                        d: `M ${x} ${y-4} L ${x+1} ${y-1} L ${x+4} ${y-1} L ${x+2} ${y+1} L ${x+3} ${y+4} L ${x} ${y+2} L ${x-3} ${y+4} L ${x-2} ${y+1} L ${x-4} ${y-1} L ${x-1} ${y-1} Z`,
+                        fill: "#fbbf24",
+                        className: "star-decoration"
+                      })
+                    )
+                  );
+                }
+
+                if (isOtherSideFood) {
+                  elements.push(
+                    React.createElement('g', { key: `ghost-food-${index}`, className: 'ghost-food-icon', opacity: "0.6" },
+                      React.createElement('circle', {
+                        cx: x,
+                        cy: y,
+                        r: 5,
+                        fill: "#a78bfa",
+                        className: "ghost-food-glow"
+                      }),
+                      React.createElement('text', {
+                        x: x,
+                        y: y + 1,
+                        textAnchor: "middle",
+                        dominantBaseline: "middle",
+                        fill: "#ddd6fe",
+                        fontSize: "8",
+                        fontWeight: "bold"
+                      }, "?")
+                    )
+                  );
+                }
+
+                if (onActiveWrapEdge) {
+                  elements.push(
+                    React.createElement('circle', {
+                      key: `exit-${index}`,
+                      cx: x,
+                      cy: y,
+                      r: 3,
+                      fill: "#60a5fa",
+                      className: "exit-marker"
+                    })
+                  );
+                }
+
+                if (onOtherEdge) {
+                  elements.push(
+                    React.createElement('line', {
+                      key: `wall1-${index}`,
+                      x1: x - 3,
+                      y1: y - 3,
+                      x2: x + 3,
+                      y2: y + 3,
+                      stroke: "#ef4444",
+                      strokeWidth: "1.5",
+                      className: "wall-marker"
+                    }),
+                    React.createElement('line', {
+                      key: `wall2-${index}`,
+                      x1: x + 3,
+                      y1: y - 3,
+                      x2: x - 3,
+                      y2: y + 3,
+                      stroke: "#ef4444",
+                      strokeWidth: "1.5",
+                      className: "wall-marker"
+                    })
+                  );
+                }
+
+                return React.createElement('g', { key: index }, ...elements);
+              })
+            ),
+            gameState.gameOver && React.createElement('div', { className: 'game-over-overlay' },
+              React.createElement('div', { className: 'game-over-content' },
+                React.createElement('h2', null, '游戏结束'),
+                React.createElement('p', null, '最终得分: ', gameState.score),
+                React.createElement('button', {
+                  onClick: restartGame,
+                  className: 'restart-btn'
+                }, '重新开始')
+              )
+            ),
+            !gameState.isPlaying && !gameState.gameOver && React.createElement('div', { className: 'start-overlay' },
+              React.createElement('div', { className: 'start-content' },
+                React.createElement('h2', null, '六边形贪吃蛇'),
+                React.createElement('div', { className: 'instructions' },
+                  React.createElement('p', null, '使用 ← → 方向键控制蛇的转向'),
+                  React.createElement('p', null, '吃到粉色食物得分并变长'),
+                  React.createElement('p', null,
+                    React.createElement('span', { className: 'highlight-blue' }, '🔵蓝色边'),
+                    '可翻转 → 从对称位置出现'
+                  ),
+                  React.createElement('p', null,
+                    React.createElement('span', { className: 'highlight-red' }, '🔴红色X'),
+                    '是墙壁 | 翻转后切换出口边'
+                  )
+                ),
+                React.createElement('button', {
+                  onClick: startGame,
+                  className: 'start-btn'
+                }, '开始游戏')
+              )
+            ),
+            gameState.eatEffect && React.createElement('div', {
+              className: 'eat-effect',
+              style: {
+                left: `${viewBoxWidth/2 + gameState.eatEffect.x}px`,
+                top: `${viewBoxHeight/2 + gameState.eatEffect.y}px`
+              }
+            }, '+10')
+          ),
+          React.createElement('div', { className: 'controls' },
+            React.createElement('p', null, '按 ← 左转 | 按 → 右转 | 🔵翻转 🔴墙壁')
+          )
+        );
+      }
+
+      // 使用 React 18 的新 createRoot API
+      const container = document.getElementById('root');
+      const root = ReactDOM.createRoot(container);
+      root.render(React.createElement(App));
+    </script>
+  </body>
+</html>
