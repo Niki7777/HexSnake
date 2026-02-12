@@ -322,27 +322,10 @@ function App() {
             newSide = newHead.side
             flipped = true
             
-            // 根据当前翻转边的对称轴翻转行进方向，然后取反（往棋盘内部走）
-            const activeEdgePair = WRAP_EDGE_PAIRS[FIXED_WRAP_PAIR_INDEX]
-            let flippedDirection: Direction
-            if (activeEdgePair.name === 'horizontal') {
-              // 水平边 (q = ±GRID_RADIUS)，对称轴是 q = 0
-              // 关于垂直线对称，左右翻转
-              const horizontalFlip: Direction[] = [3, 2, 1, 0, 5, 4]
-              flippedDirection = horizontalFlip[prev.direction]
-            } else if (activeEdgePair.name === 'diagonal1') {
-              // 对角线1 (r = ±GRID_RADIUS)，对称轴是 r = 0
-              // 关于水平线对称，上下翻转
-              const diagonal1Flip: Direction[] = [0, 5, 4, 3, 2, 1]
-              flippedDirection = diagonal1Flip[prev.direction]
-            } else {
-              // 对角线2 (s = ±GRID_RADIUS)，对称轴是 s = 0
-              // 关于 s=0 对称
-              const diagonal2Flip: Direction[] = [4, 3, 2, 1, 0, 5]
-              flippedDirection = diagonal2Flip[prev.direction]
-            }
-            // 取反方向（加3再对6取模），使蛇往棋盘内部走
-            newDirection = ((flippedDirection + 3) % 6) as Direction
+            // 行进方向保持不变：
+            // 从蓝色边垂直向外出去 → 从对称蓝色边垂直向内进入
+            // 方向向量在翻转后保持相同的相对方向
+            // 例如：垂直于左上蓝边向外 → 垂直于右下蓝边向内（方向值相同）
           } else if (!isValidPosition(nextCoord)) {
             // 撞墙
             return { ...prev, gameOver: true, isPlaying: false }
