@@ -110,17 +110,7 @@ body {
 }
 
 .star-decoration {
-  animation: starRotate 3s linear infinite;
-  transform-origin: center;
-}
-
-@keyframes starRotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  /* 星星固定在食物上，无动画 */
 }
 
 @keyframes foodPulse {
